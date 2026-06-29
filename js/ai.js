@@ -8,8 +8,15 @@ const AI = (() => {
   const KEY_MODEL    = 'mednama_ollama_model';
   const KEY_OC_KEY   = 'mednama_opencode_key';
   const KEY_OC_MODEL = 'mednama_opencode_model';
-  // Use relative proxy if served via our local server.js, else direct URL
-  const OC_BASE = window.location.port === '3000' ? '/zen/v1' : 'https://opencode.ai/zen/v1';
+  const KEY_OC_BASE  = 'mednama_opencode_base';
+  // Use the relative proxy when served via our local server.js (port 3000).
+  // On any other host (incl. GitHub Pages), the user can set a custom proxy
+  // base URL — otherwise we fall back to the direct opencode.ai endpoint
+  // (note: opencode.ai does NOT send CORS headers on actual responses, so the
+  //  direct endpoint only works through a proxy/same-origin setup).
+  const DEFAULT_OC_BASE = window.location.port === '3000'
+    ? '/zen/v1'
+    : 'https://opencode.ai/zen/v1';
   let statusPoll = null;
 
   function getProvider()    { return localStorage.getItem(KEY_PROVIDER) || 'ollama'; }
@@ -17,6 +24,7 @@ const AI = (() => {
   function getModel()       { return localStorage.getItem(KEY_MODEL)    || 'qwen3:8b'; }
   function getOCKey()       { return localStorage.getItem(KEY_OC_KEY)   || ''; }
   function getOCModel()     { return localStorage.getItem(KEY_OC_MODEL) || 'big-pickle'; }
+  function getOCBase()      { return (localStorage.getItem(KEY_OC_BASE) || '').trim() || DEFAULT_OC_BASE; }
 
   function setConfig(cfg) {
     if (cfg.provider) localStorage.setItem(KEY_PROVIDER, cfg.provider);
@@ -24,6 +32,7 @@ const AI = (() => {
     if (cfg.model)    localStorage.setItem(KEY_MODEL, cfg.model);
     if (cfg.ocKey)    localStorage.setItem(KEY_OC_KEY, cfg.ocKey);
     if (cfg.ocModel)  localStorage.setItem(KEY_OC_MODEL, cfg.ocModel);
+    if (cfg.ocBase !== undefined) localStorage.setItem(KEY_OC_BASE, cfg.ocBase);
     checkNow();
   }
 
@@ -33,7 +42,8 @@ const AI = (() => {
       url: getUrl(),
       model: getModel(),
       ocKey: getOCKey(),
-      ocModel: getOCModel()
+      ocModel: getOCModel(),
+      ocBase: getOCBase()
     };
   }
 
@@ -47,8 +57,21 @@ const AI = (() => {
     return msg === 'Failed to fetch' || msg.includes('NetworkError') || msg.includes('Load failed') || msg.includes('Network request failed');
   }
 
+  function isStaticHost() {
+    // GitHub Pages, Netlify, Vercel preview, etc. — static hosts that
+    // cannot run our Node proxy (server.js).
+    const h = window.location.hostname;
+    return /\.github\.io$|\.netlify\.app$|\.vercel\.app$|\.pages\.dev$/.test(h);
+  }
+
   function corsHint() {
-    return ' This is likely a CORS issue. Serve this app via a local HTTP server:\n  npx serve .\n  python -m http.server 8000\n  Or use Ollama instead.';
+    if (window.location.port === '3000') {
+      return ' The local proxy (server.js) is running but the request failed. Check server.js console and your API key.';
+    }
+    if (isStaticHost()) {
+      return ' Opencode.ai does NOT send CORS headers on responses, so a browser on a static host (e.g. GitHub Pages) cannot call it directly. Fix: run the local Node proxy with `node server.js` (then open http://localhost:3000), OR set a custom Opencode proxy URL in AI settings that points to a CORS-enabled proxy you control (e.g. a Cloudflare Worker / Render deployment of server.js). Alternatively, use Ollama locally.';
+    }
+    return ' This is a CORS issue. Run the local Node proxy: `node server.js`, then open http://localhost:3000. Or set a custom Opencode proxy URL in AI settings, or use Ollama locally.';
   }
 
   async function fetchStatus() {
@@ -57,7 +80,7 @@ const AI = (() => {
       const key = getOCKey();
       if (!key) return { state: 'off', provider, model: getOCModel(), detail: 'No API key set' };
       try {
-        const r = await fetch(OC_BASE + '/models', {
+        const r = await fetch(getOCBase() + '/models', {
           method: 'GET',
           headers: { 'Authorization': `Bearer ${key}` }
         });
@@ -147,7 +170,7 @@ const AI = (() => {
     const key = opts.ocKey || getOCKey();
     if (!key) throw new Error('Opencode AI API key not configured.');
     try {
-      const r = await fetch(OC_BASE + '/chat/completions', {
+      const r = await fetch(getOCBase() + '/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -220,40 +243,77 @@ ${trimmed}`;
     });
   }
 
+  const MCQ_PROMPT =
+`Generate FCPS/JCAT-style MCQs **only from the provided material**. Prioritize **clinical scenario-based questions** that test conceptual understanding, clinical reasoning, differential diagnosis, investigation interpretation, management, or pathophysiology rather than factual recall. Use realistic patient scenarios with plausible distractors and a single best answer. If a clinical scenario cannot reasonably be created from the material, generate a high-quality conceptual/theoretical question instead.
+
+Return **only valid JSON** in the following structure:
+
+` + '```json\n' +
+`{
+  "questions": [
+    {
+      "stem": "...",
+      "options": {
+        "A": "...",
+        "B": "...",
+        "C": "...",
+        "D": "..."
+      },
+      "answer": "B",
+      "explanation": "Explain why the correct answer is correct and briefly why the other options are incorrect.",
+      "clinicalPearl": "One high-yield exam takeaway."
+    }
+  ]
+}` + '\n```' + `
+
+Ensure questions vary in presentation, avoid repetition, distribute correct answers randomly, and never include information not supported by the provided material.`;
+
+  const MCQ_SYSTEM =
+'You are a medical exam question writer for FCPS/JCAT-style exams. Output ONLY valid JSON with no markdown, no code fences, no extra text. Always wrap the JSON object in the exact structure shown.';
+
   function generateMCQs(text, count) {
     const trimmed = (text || '').substring(0, 5000);
     const prompt =
-`Generate ${count} multiple-choice questions for medical students based on the passage below.
-Each question must have:
-- A clear question (q)
-- Four options labeled A, B, C, D (opts array)
-- The correct answer index (0=A, 1=B, 2=C, 3=D) (ans)
-- A brief explanation (e)
-- A topic tag (t)
+`Generate ${count} MCQs from the passage below using the instructions below.
 
-Format your response as a valid JSON array of objects with keys: q, opts, ans, e, t
-Do NOT include any markdown formatting, code blocks, or extra text — ONLY output the JSON array.
+${MCQ_PROMPT}
 
 PASSAGE:
 ${trimmed}`;
     return chat(prompt, {
-      system: 'You are a medical exam question writer. Output ONLY valid JSON arrays with no markdown, no code fences, no extra text.',
+      system: MCQ_SYSTEM,
       temperature: 0.7
     }).then(raw => {
-      // Try to parse JSON from response
-      const json = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+      // Strip any markdown fences and surrounding prose
+      let json = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+      // If the model wrapped only part, grab the outermost {...} block
+      const start = json.indexOf('{');
+      const end = json.lastIndexOf('}');
+      if (start !== -1 && end !== -1 && end > start) json = json.slice(start, end + 1);
       const parsed = JSON.parse(json);
-      if (!Array.isArray(parsed)) throw new Error('Response was not an array');
-      parsed.forEach((item, i) => {
-        if (!item.q || !item.opts || !Array.isArray(item.opts) || item.opts.length < 4) {
-          throw new Error(`Question ${i+1} is malformed`);
+      const questions = parsed.questions || parsed;
+      if (!Array.isArray(questions)) throw new Error('Response was not a questions array');
+      const LETTER_TO_IDX = { A: 0, B: 1, C: 2, D: 3 };
+      return questions.map((item, i) => {
+        if (!item.stem || !item.options) throw new Error(`Question ${i+1} is malformed`);
+        const optsObj = item.options;
+        const opts = ['A','B','C','D'].map(L => optsObj[L]).filter(v => v != null);
+        if (opts.length < 4) throw new Error(`Question ${i+1} needs 4 options`);
+        let ans = 0;
+        if (typeof item.answer === 'string') {
+          ans = LETTER_TO_IDX[item.answer.toUpperCase()] ?? 0;
+        } else if (typeof item.answer === 'number') {
+          ans = item.answer;
         }
-        item.ans = typeof item.ans === 'number' ? item.ans : 0;
-        item.e = item.e || '';
-        item.t = item.t || '';
-        item._ai = true;
+        return {
+          q: item.stem,
+          opts,
+          ans,
+          e: (item.explanation || '') + (item.clinicalPearl ? `\n\n💡 ${item.clinicalPearl}` : ''),
+          t: item.clinicalPearl || '',
+          _ai: true
+        };
       });
-      return parsed;
     });
   }
 

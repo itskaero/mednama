@@ -551,9 +551,6 @@ const UI = (() => {
             <div class="small muted mb-12">
               Get your API key at <a href="https://opencode.ai/auth" target="_blank" rel="noopener">opencode.ai/auth</a> — sign in, add billing, copy key.
               Uses Zen API at <code>opencode.ai/zen/v1</code>.
-              <strong>Note:</strong> If running from <code>file://</code>, you must serve the app via HTTP first:
-              <code style="display:block;margin:4px 0;padding:6px 8px;background:var(--bg);border-radius:4px;">npx serve .</code>
-              Then open <code>http://localhost:3000</code>.
             </div>
             <div class="field">
               <label>Model</label>
@@ -561,6 +558,16 @@ const UI = (() => {
               <div class="small muted mt-4">
                 Recommended free models: <strong>big-pickle</strong>, <strong>deepseek-v4-flash-free</strong>, <strong>mimo-v2.5-free</strong>.
                 Paid: <strong>deepseek-v4-flash</strong>, <strong>kimi-k2.5</strong>, <strong>qwen3.7-plus</strong>.
+              </div>
+            </div>
+            <div class="field">
+              <label>Opencode API endpoint (proxy URL)</label>
+              <input id="ai-oc-base" value="${escapeAttr(cfg.ocBase)}" placeholder="https://opencode.ai/zen/v1" />
+              <div class="small muted mt-4">
+                opencode.ai does <strong>not</strong> send CORS headers on responses, so direct browser calls from a static host (e.g. GitHub Pages) are blocked.
+                To use it from the web, point this to a CORS-enabled proxy you control — for example your own deployment of <code>server.js</code>:
+                <code style="display:block;margin:4px 0;padding:6px 8px;background:var(--bg);border-radius:4px;">https://your-proxy.example.com/zen/v1</code>
+                Locally, just run <code>node server.js</code> and open <code>http://localhost:3000</code> (the proxy is used automatically).
               </div>
             </div>
           </div>
@@ -586,10 +593,11 @@ const UI = (() => {
     const model = document.getElementById('ai-ollama-model').value.trim();
     const ocKey = document.getElementById('ai-oc-key').value.trim();
     const ocModel = document.getElementById('ai-oc-model').value.trim();
+    const ocBase = document.getElementById('ai-oc-base').value.trim();
     const status = document.getElementById('ai-settings-status');
     status.innerHTML = '<span class="spinner"></span> Saving and testing…';
     status.style.color = '';
-    AI.setConfig({ provider, url, model, ocKey, ocModel });
+    AI.setConfig({ provider, url, model, ocKey, ocModel, ocBase });
     AI.checkNow().then(s => {
       if (s.state === 'on') {
         status.innerHTML = '✅ Connected successfully.';

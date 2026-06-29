@@ -16,6 +16,18 @@ const ZEN_HOST = 'opencode.ai';
 http.createServer((req, res) => {
   const url = req.url;
 
+  // ── Handle CORS preflight FIRST (must come before proxy block) ──
+  if (req.method === 'OPTIONS' && url.startsWith('/zen/')) {
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Max-Age': '86400'
+    });
+    res.end();
+    return;
+  }
+
   // ── Proxy /zen/* requests to Opencode AI Zen API ──
   if (url.startsWith('/zen/')) {
     const zenPath = url.substring(1); // -> zen/v1/models, zen/v1/chat/completions, etc.
@@ -34,6 +46,7 @@ http.createServer((req, res) => {
       res.writeHead(proxyRes.statusCode, {
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, OPTIONS',
         'Content-Type': proxyRes.headers['content-type'] || 'application/json'
       });
       proxyRes.pipe(res);
@@ -52,20 +65,9 @@ http.createServer((req, res) => {
     return;
   }
 
-  // ── Handle CORS preflight for /zen/ ──
-  if (req.method === 'OPTIONS' && url.startsWith('/zen/')) {
-    res.writeHead(204, {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-    });
-    res.end();
-    return;
-  }
-
   // ── Serve static files ──
   let filePath = '.' + url;
-  if (filePath === './') filePath = './main.html';
+  if (filePath === './') filePath = './index.html';
 
   const ext = path.extname(filePath);
   const contentType = MIME[ext] || 'application/octet-stream';
