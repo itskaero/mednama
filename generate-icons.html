@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html><head><title>Generate Icons</title></head>
+<body>
+<p>Open this file in a browser to generate PNG icons for PWA.</p>
+<script>
+(function() {
+  const sizes = [192, 512];
+  function createIcon(size) {
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const ctx = c.getContext('2d');
+    const r = size * 0.1875;
+    const grad = ctx.createLinearGradient(0, 0, size, size);
+    grad.addColorStop(0, '#0A6E6E');
+    grad.addColorStop(1, '#D4893A');
+    roundRect(ctx, 0, 0, size, size, r);
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.fillStyle = 'white';
+    ctx.font = `bold ${size * 0.55}px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('M', size / 2, size * 0.52);
+    ctx.font = `${size * 0.09}px system-ui, sans-serif`;
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.fillText('MedNama', size / 2, size * 0.78);
+    c.toBlob(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `icon-${size}.png`;
+      a.click();
+    }, 'image/png');
+  }
+  function roundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+  sizes.forEach(createIcon);
+  document.body.innerHTML += '<p>Done! Icons downloaded. Place them alongside main.html.</p>';
+})();
+</script>
+</body>
+</html>

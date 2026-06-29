@@ -1,0 +1,17 @@
+{
+  "name": "MedNama — MCQ Companion",
+  "short_name": "MedNama",
+  "description": "Medical MCQ study companion with spaced repetition, AI explanations, PDF reader, and mock exams",
+  "start_url": "./main.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#F4F6F9",
+  "theme_color": "#0A6E6E",
+  "categories": ["education", "medical"],
+  "icons": [
+    { "src": "./icon.svg", "type": "image/svg+xml", "sizes": "any" },
+    { "src": "./icon-192.png", "type": "image/png", "sizes": "192x192" },
+    { "src": "./icon-512.png", "type": "image/png", "sizes": "512x512" }
+  ]
+}

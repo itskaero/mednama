@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0A6E6E">
+<meta name="description" content="MedNama — MCQ Companion for Medical Students">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MedNama">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" type="image/svg+xml" href="./icon.svg">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<title>MedNama — MCQ Companion</title>
+<link rel="stylesheet" href="./css/theme.css">
+</head>
+<body>
+<div class="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="brand" onclick="App.go('home')">
+      <div class="logo">M</div>
+      <div>
+        <div class="name">MedNama</div>
+        <div class="tag">MCQ COMPANION</div>
+      </div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section">MAIN</div>
+      <a class="nav-item active" data-page="home"    onclick="App.go('home')"><span class="nav-icon">🏠</span> Dashboard</a>
+      <a class="nav-item"        data-page="bank"    onclick="App.go('bank')"><span class="nav-icon">📝</span> MCQ Bank</a>
+      <a class="nav-item"        data-page="builder" onclick="App.go('builder')"><span class="nav-icon">📅</span> Mock Builder</a>
+      <a class="nav-item"        data-page="stats"   onclick="App.go('stats')"><span class="nav-icon">📈</span> Stats</a>
+      <div class="nav-section">RESOURCES</div>
+      <a class="nav-item"        data-page="pdf"     onclick="App.go('pdf')"><span class="nav-icon">📖</span> Read Book / PDF</a>
+      <a class="nav-item"        data-page="ai-mcq"  onclick="App.go('ai-mcq')"><span class="nav-icon">🤖</span> AI-Generated MCQs</a>
+      <a class="nav-item"        data-page="add-mcq" onclick="App.go('add-mcq')"><span class="nav-icon">➕</span> Add MCQ</a>
+    </nav>
+    <div class="side-footer">
+      <div class="ai-status" onclick="UI.showAISettings()" title="Click to configure AI provider">
+        <span class="ai-dot waiting" id="ai-dot"></span>
+        <div style="flex:1;">
+          <div class="label" id="ai-label">Checking AI…</div>
+          <div class="model" id="ai-model"></div>
+        </div>
+      </div>
+    </div>
+  </aside>
+  <div class="overlay" id="overlay"></div>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="topbar">
+      <button class="menu-btn" id="menu-btn">☰</button>
+      <div id="topbar-title"><h1>Dashboard</h1></div>
+      <div class="topbar-actions">
+        <button class="btn btn-sm" onclick="UI.toggleAIPanel()">💬 Ask AI</button>
+      </div>
+    </div>
+    <div class="content">
+      <div id="view"></div>
+    </div>
+  </main>
+</div>
+
+<!-- AI side panel -->
+<div class="ai-panel" id="ai-panel">
+  <div class="ai-head">
+    <h3><span class="ai-dot on"></span> Dr. MedNama AI</h3>
+    <button class="btn btn-ghost btn-sm" id="ai-close">✕</button>
+  </div>
+  <div class="ai-body" id="ai-body">
+    <div class="ai-msg bot">Hi! I'm your study companion. Ask me to explain any concept, MCQ, or text from a PDF.
+    <div class="small muted mt-8">Configure AI provider (Ollama or Opencode AI) by clicking the status bar in the sidebar.</div></div>
+  </div>
+  <div class="ai-input-row">
+    <textarea id="ai-input" placeholder="Ask anything… (Enter to send, Shift+Enter for new line)"></textarea>
+    <button class="btn btn-primary btn-sm" id="ai-send">➤</button>
+  </div>
+</div>
+<button class="ai-fab" id="ai-fab" title="Ask AI">💬</button>
+
+<!-- Scripts -->
+<script src="./js/manifest.js"></script>
+<script src="./js/store.js"></script>
+<script src="./js/ai.js"></script>
+<script src="./js/ui.js"></script>
+<script src="./js/app.js"></script>
+
+</body>
+</html>
